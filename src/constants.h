@@ -7,5 +7,6 @@
 
 const uint16_t kSensorAirValue = 564;
 const uint16_t KSensorWaterValue = 300;
+const uint16_t kPauseBetweenWatering = 300;
 
 #endif

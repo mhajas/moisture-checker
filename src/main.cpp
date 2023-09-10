@@ -3,54 +3,84 @@
 #include <LiquidCrystal_I2C.h>
 #include "plant.h"
 
-#define MOISTURE_SENSOR_PIN 8
-
 const int AirValue = 564;   //you need to replace this value with Value_1
 const int WaterValue = 300;  //you need to replace this value with Value_2
-int counter = 0;
+uint64_t timestamp = 0;
+bool backlight = false;
 
-michal_moisture_checker::Plant myPlant1 = michal_moisture_checker::Plant(A0);
+michal_moisture_checker::Plant myPlant1 = michal_moisture_checker::Plant(A1, PIN6, &timestamp);
+michal_moisture_checker::Plant myPlant2 = michal_moisture_checker::Plant(A0, PIN7, &timestamp);
 
 LiquidCrystal_I2C lcd(0x27,16,2);
 
 void setup() {
     Serial.begin(9600);
-    pinMode(MOISTURE_SENSOR_PIN, OUTPUT);
-    digitalWrite(MOISTURE_SENSOR_PIN, HIGH);
+    Serial.println("Starting setup");
+
+    Serial.println("Setting up PINS - started");
+    pinMode(PIN7, OUTPUT);
+    pinMode(PIN6, OUTPUT);
+    digitalWrite(PIN7, HIGH);    
+    digitalWrite(PIN6, HIGH);    
+    Serial.println("Setting up PINS - finished");
+    
+
+    // Init LED
+    Serial.println("Setting up LED - started");
+    lcd.init();
+    Serial.println("Setting up LED - finished");
+
+
+    // Serial.println("Setting up LED interrupt - started");
+
+    // pinMode(PIN2, INPUT);
+    // attachInterrupt(digitalPinToInterrupt(PIN2), enableBacklight, RISING);
+    // Serial.println("Setting up LED interrupt - finished");
+
+
 }
 
 void loop() {
     Serial.println("---------------------------------------");
-    Serial.print("Starting iteration ");
-    Serial.println(counter);
-    uint8_t soilmoisturepercent = myPlant1.MeasureMoistureLevel();
+    Serial.print("Starting iteration at ");
+    Serial.println((unsigned int) timestamp);
+    myPlant1.MeasureMoistureLevel();
+    myPlant2.MeasureMoistureLevel();
 
-    Serial.println("Starting displaying data on LCD");
-    lcd.init();
-    lcd.backlight();
+    int lightLevel = analogRead(A2);
+    Serial.print("Light level: ");
+    Serial.println(lightLevel);
+
+    lcd.setBacklight(backlight);
     lcd.clear();
-    lcd.print("Vlhkost ");
+
+    // Plant 1
+    lcd.setCursor(0, 0);
+    lcd.print("                ");
+    lcd.setCursor(0, 0);
+    lcd.print(myPlant1.GetWaterLevel());
+    lcd.print("% ");
+    lcd.print((long) myPlant1.GetWateringCounter());
+    lcd.print("x ");
+    lcd.print(lightLevel);
+    lcd.print("l");
+    
+
+    // Plant 2
     lcd.setCursor(0, 1);
-    lcd.print("           ");
+    lcd.print("                ");
     lcd.setCursor(0, 1);
-    lcd.print(soilmoisturepercent);
-    lcd.print("%");
+    lcd.print(myPlant2.GetWaterLevel());
+    lcd.print("% ");
+    lcd.print((long) myPlant2.GetWateringCounter());
+    lcd.print("x");
+
     Serial.println("Displaying finished");
 
-    if (counter == 10 && soilmoisturepercent < 20) {
-        Serial.println("Level is below 20% and we are in 10th iteration. Watering plant.");
-        digitalWrite(MOISTURE_SENSOR_PIN, LOW);
-        delay(2000);
-        digitalWrite(MOISTURE_SENSOR_PIN, HIGH);
-        Serial.println("Watering finished.");
-    }
-
-    if (counter == 10) {
-        counter = 0;
-    } else {
-        counter++;
-    }
+    myPlant1.WaterPlantIfNeeded();
+    myPlant2.WaterPlantIfNeeded();
 
     Serial.println("Delaying next loop iteration.");
-    delay(2000);
+    delay(1000);
+    timestamp++;
 }
